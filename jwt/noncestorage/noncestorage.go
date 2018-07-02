@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coreos/jwtproxy/config"
-	"github.com/coreos/jwtproxy/stop"
+	"github.com/eclipse/che-jwtproxy/config"
+	"github.com/eclipse/che-jwtproxy/stop"
 )
 
 type Constructor func(config.RegistrableComponentConfig) (NonceStorage, error)
