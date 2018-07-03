@@ -69,10 +69,20 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 }
 
 func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, audience *url.URL, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
-	// Extract token from request.
-	token, err := oidc.ExtractBearerToken(req)
+	// Extract token from cookie.
+	cookieExtractor := oidc.CookieTokenExtractor("access_token")
+	token, err := cookieExtractor(req)
 	if err != nil {
-		return nil, errors.New("No JWT found")
+		// Not found in cookie, extract from header
+		token, err = oidc.ExtractBearerToken(req)
+		if err != nil {
+			// Not found in header, extract from query
+			token = req.URL.Query().Get("token")
+			if token == "" {
+				// Not found anywhere
+				return nil, errors.New("No JWT found")
+			}
+		}
 	}
 
 	// Parse token.

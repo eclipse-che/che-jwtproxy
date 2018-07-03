@@ -126,6 +126,25 @@ func TestJWT(t *testing.T) {
 	// Basic sign / verify.
 	assert.Nil(t, signAndVerify(t, req, *defaultConfig, nil))
 
+	// Sign / verify with cookie
+	cookieReq, _ := http.NewRequest("GET", "http://foo.bar:6666/ez", nil)
+	cookieModifier := func(req *http.Request) {
+		token, err := oidc.ExtractBearerToken(req)
+		assert.Nil(t, err)
+
+		req.Header.Set("Authorization", "")
+		cookie := http.Cookie{Name: "access_token", Value: token}
+		req.AddCookie(&cookie)
+	}
+	assert.Nil(t, signAndVerify(t, cookieReq, *defaultConfig, cookieModifier))
+
+	// Sign / verify with query
+	token, err := oidc.ExtractBearerToken(req)
+	assert.Nil(t, err)
+	queryReq, _ := http.NewRequest("GET", "http://foo.bar:6666/ez?token="+token, nil)
+	queryReq.Header.Set("Authorization", "")
+	assert.Nil(t, signAndVerify(t, queryReq, *defaultConfig, nil))
+
 	// Alter a claim.
 	claimModifier := func(req *http.Request) {
 		token, err := oidc.ExtractBearerToken(req)
