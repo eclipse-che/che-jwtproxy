@@ -20,10 +20,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+
 	"github.com/eclipse/che-jwtproxy/config"
 	"github.com/eclipse/che-jwtproxy/jwt"
 	"github.com/eclipse/che-jwtproxy/proxy"
 	"github.com/eclipse/che-jwtproxy/stop"
+	"regexp"
+
 )
 
 // RunProxies is an utility function that starts both the JWT verifier and signer proxies
@@ -99,8 +102,22 @@ func StartReverseProxy(rpConfig config.VerifierProxyConfig, stopper *stop.Group,
 		return
 	}
 
+	//Create simple (non-verifying) handler
+	proxier, err := jwt.NewReverseProxyHandler(rpConfig.Verifier)
+
+	var excludes []*regexp.Regexp
+	for _, ex := range rpConfig.Verifier.Excludes {
+		regex, err := regexp.Compile(ex)
+		if err != nil {
+			stopper.Add(verifier)
+			abort <- fmt.Errorf("Failed to create reverse proxy: %s", err)
+			return
+		}
+		excludes = append(excludes, regex)
+	}
+
 	// Create reverse proxy.
-	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler)
+	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, excludes...)
 	if err != nil {
 		stopper.Add(verifier)
 		abort <- fmt.Errorf("Failed to create reverse proxy: %s", err)

@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"regexp"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/eclipse/che-jwtproxy/stop"
@@ -134,14 +135,17 @@ func NewProxy(proxyHandler Handler, caKeyPath, caCertPath string, insecureSkipVe
 	return &Proxy{ProxyHttpServer: proxy}, nil
 }
 
-func NewReverseProxy(proxyHandler Handler) (*Proxy, error) {
+func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, excludes... *regexp.Regexp) (*Proxy, error) {
 	// Create a reverse proxy.
 	reverseProxy := goproxy.NewReverseProxyHttpServer()
 	reverseProxy.Tr = http.DefaultTransport.(*http.Transport)
 	reverseProxy.Verbose = log.GetLevel() == log.DebugLevel
 
-	// Handle requests with the specified handler.
-	reverseProxy.OnRequest().DoFunc(proxyHandler)
+	// Handle requests with the validation handler.
+	reverseProxy.OnRequest(goproxy.Not(IsCorsPreflight()), goproxy.Not(UrlMatches(excludes...))).DoFunc(vefiyingHandler)
+	// Cors or excludes
+	reverseProxy.OnRequest(IsCorsPreflight()).DoFunc(proxyHandler)
+	reverseProxy.OnRequest(UrlMatches(excludes...)).DoFunc(proxyHandler)
 
 	return &Proxy{ProxyHttpServer: reverseProxy}, nil
 }
@@ -212,4 +216,31 @@ func readCA(caKeyPath, caCertPath string) (*tls.Certificate, error) {
 
 	ca.Leaf, err = x509.ParseCertificate(ca.Certificate[0])
 	return &ca, err
+}
+
+// Returns a ReqCondition testing whether the request is the CORS preflight
+func IsCorsPreflight() goproxy.ReqConditionFunc {
+	return func(req *http.Request, ctx *goproxy.ProxyCtx) bool {
+		if req.Method == "OPTIONS" {
+			for name := range req.Header {
+				if strings.HasPrefix(strings.ToLower(name), "access-control-request") {
+					return true
+				}
+			}
+		}
+		return false
+	}
+}
+
+// UrlMatches returns a ReqCondition testing whether the destination URL
+// of the request matches any of the given regexp
+func UrlMatches(regexps ...*regexp.Regexp) goproxy.ReqConditionFunc {
+	return func(req *http.Request, ctx *goproxy.ProxyCtx) bool {
+		for _, re := range regexps {
+			if re.MatchString(req.URL.Path) {
+				return true
+			}
+		}
+		return false
+	}
 }

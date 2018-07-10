@@ -146,6 +146,27 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 	}, nil
 }
 
+// Simply proxying request to the upstream
+func NewReverseProxyHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, error) {
+
+	stopper := stop.NewGroup()
+
+	// Create an appropriate routing policy.
+	route := newRouter(cfg.Upstream.URL)
+
+	// Create a reverse proxy.Handler that will proxy request to upstream
+	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+		// Route the request to upstream.
+		route(r, ctx)
+		return r, nil
+	}
+
+	return &StoppableProxyHandler{
+		Handler:  handler,
+		stopFunc: stopper.Stop,
+	}, nil
+}
+
 func (sph *StoppableProxyHandler) Stop() <-chan struct{} {
 	return sph.stopFunc()
 }
