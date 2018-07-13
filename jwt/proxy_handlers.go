@@ -75,9 +75,6 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 	if cfg.Upstream.URL == nil {
 		return nil, errors.New("no upstream specified")
 	}
-	if cfg.Audience.URL == nil {
-		return nil, errors.New("no audience specified")
-	}
 	if cfg.KeyServer.Type == "" {
 		return nil, errors.New("no key server specified")
 	}
@@ -121,7 +118,7 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 
 	// Create a reverse proxy.Handler that will verify JWT from http.Requests.
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.Audience.URL, cfg.MaxSkew, cfg.MaxTTL)
+		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
 		if err != nil {
 			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, fmt.Sprintf("jwtproxy: unable to verify request: %s", err))
 		}

@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jwt
+package jwt_test
 
 import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"math/big"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
-	"github.com/coreos/go-oidc/jose"
 	"github.com/coreos/go-oidc/key"
-	"github.com/coreos/go-oidc/oidc"
 	"github.com/eclipse/che-jwtproxy/config"
 	"github.com/eclipse/che-jwtproxy/stop"
 	"github.com/stretchr/testify/assert"
+	"github.com/eclipse/che-jwtproxy/jwt"
+	"github.com/coreos/go-oidc/oidc"
+	"github.com/coreos/go-oidc/jose"
 )
 
 const privateKey = `
@@ -47,7 +46,6 @@ im92fadzPg+oTXIQIjlHhGgf7CKb5VwFuH9+gA==
 type testService struct {
 	// privatekey
 	privkey        *key.PrivateKey
-	sendBadPrivKey bool
 
 	// keyserver
 	issuer        string
@@ -59,10 +57,6 @@ type testService struct {
 
 func (ts *testService) GetPrivateKey() (*key.PrivateKey, error) {
 	p := *ts.privkey
-	if ts.sendBadPrivKey {
-		p.PrivateKey.D.Add(p.PrivateKey.D, big.NewInt(1))
-	}
-
 	return &p, nil
 }
 
@@ -87,7 +81,8 @@ func (ts *testService) Stop() <-chan struct{} {
 	return stop.AlreadyDone
 }
 
-func TestJWT(t *testing.T) {
+
+func testData() (*http.Request, *signAndVerifyParams) {
 	// Create a request to sign.
 	req, _ := http.NewRequest("GET", "http://foo.bar:6666/ez", nil)
 
@@ -102,14 +97,13 @@ func TestJWT(t *testing.T) {
 	// Create a test service to act as a keyserver and as a privatekey provider.
 	services := &testService{
 		privkey:        pk,
-		sendBadPrivKey: false,
 		issuer:         "issuer",
 		sendBadPubKey:  false,
 		refuseNonce:    false,
 	}
 
 	// Create a default (and valid) configuration to sign and verify requests.
-	aud, _ := url.Parse("http://foo.bar:6666/ez")
+	aud := "http://foo.bar:6666/ez"
 	defaultConfig := &signAndVerifyParams{
 		services: services,
 		signerParams: config.SignerParams{
@@ -123,37 +117,51 @@ func TestJWT(t *testing.T) {
 		maxTTL:  5 * time.Minute,
 	}
 
-	// Basic sign / verify.
-	assert.Nil(t, signAndVerify(t, req, *defaultConfig, nil))
+	return req, defaultConfig
+}
 
+func TestBasicSignJWT(t *testing.T) {
+	req, defaultConfig := testData()
+	// Basic sign / verify.
+	signAndModify(t, req, *defaultConfig, nil)
+	assert.Nil(t, Verify(req, *defaultConfig))
+}
+
+func TestCookiesSign(t *testing.T) {
 	// Sign / verify with cookie
-	cookieReq, _ := http.NewRequest("GET", "http://foo.bar:6666/ez", nil)
+	req, defaultConfig := testData()
 	cookieModifier := func(req *http.Request) {
 		token, err := oidc.ExtractBearerToken(req)
 		assert.Nil(t, err)
-
 		req.Header.Set("Authorization", "")
 		cookie := http.Cookie{Name: "access_token", Value: token}
 		req.AddCookie(&cookie)
 	}
-	assert.Nil(t, signAndVerify(t, cookieReq, *defaultConfig, cookieModifier))
+	signAndModify(t, req, *defaultConfig, cookieModifier)
+	assert.Nil(t, Verify(req, *defaultConfig))
+}
 
+func TestQuerySign(t *testing.T) {
 	// Sign / verify with query
+	req, defaultConfig := testData()
+	signAndModify(t, req, *defaultConfig, nil)
 	token, err := oidc.ExtractBearerToken(req)
 	assert.Nil(t, err)
 	queryReq, _ := http.NewRequest("GET", "http://foo.bar:6666/ez?token="+token, nil)
 	queryReq.Header.Set("Authorization", "")
-	assert.Nil(t, signAndVerify(t, queryReq, *defaultConfig, nil))
+	assert.Nil(t, Verify(queryReq, *defaultConfig))
+}
 
+func TestWrongJTIClaim(t *testing.T) {
 	// Alter a claim.
 	claimModifier := func(req *http.Request) {
 		token, err := oidc.ExtractBearerToken(req)
 		assert.Nil(t, err)
 
-		jwt, err := jose.ParseJWT(token)
+		jwtParsed, err := jose.ParseJWT(token)
 		assert.Nil(t, err)
 
-		claims, err := jwt.Claims()
+		claims, err := jwtParsed.Claims()
 		assert.Nil(t, err)
 
 		// Alter the nonce.
@@ -161,63 +169,83 @@ func TestJWT(t *testing.T) {
 
 		// Create a new JWT having the same headers and signature but altered claims.
 		// This is the only way to encode the claims with jose.
-		modifiedJWT, err := jose.NewJWT(jwt.Header, claims)
+		modifiedJWT, err := jose.NewJWT(jwtParsed.Header, claims)
 		assert.Nil(t, err)
-		modifiedJWT.Signature = jwt.Signature
+		modifiedJWT.Signature = jwtParsed.Signature
 
 		req.Header.Set("Authorization", "Bearer "+modifiedJWT.Encode())
 	}
-	assert.Error(t, signAndVerify(t, req, *defaultConfig, claimModifier))
-
-	// Invalid nonce.
-	cfg := *defaultConfig
+	req, defaultConfig := testData()
+	signAndModify(t, req, *defaultConfig, claimModifier)
+	assert.Error(t, Verify(req, *defaultConfig))
+}
+func TestInvalidNonce(t *testing.T) {
+	req, cfg := testData()
 	cfg.services.refuseNonce = true
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
-	// Wrong audience.
-	cfg = *defaultConfig
-	cfg.aud, _ = url.Parse("http://dummy.silly/")
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+func TestInvalidAudience(t *testing.T) {
+	req, cfg := testData()
+	cfg.aud = "http://dummy.silly/"
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
-	req2, _ := http.NewRequest("GET", "http://silly.dummy/", nil)
-	assert.Error(t, signAndVerify(t, req2, cfg, nil))
+func TestEmptyAudience(t *testing.T) {
+	req, cfg := testData()
+	cfg.aud = ""
+	signAndModify(t, req, *cfg, nil)
+	assert.Nil(t, Verify(req, *cfg))
+}
 
-	// Signed for too long.
-	cfg = *defaultConfig
+
+func TestWrongTTL(t *testing.T) {
+	req, cfg := testData()
 	cfg.maxTTL = 30 * time.Second
-	assert.Error(t, signAndVerify(t, req2, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
-	// Expired.
-	cfg = *defaultConfig
+func TestWrongExpiration(t *testing.T) {
+	req, cfg := testData()
 	cfg.signerParams.ExpirationTime = -time.Second
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
-	// Used too early.
+func TestSignerMaxSkew(t *testing.T) {
 	// Abuse the signer's MaxSkew parameter to make the JWT valid only after a minute.
-	cfg = *defaultConfig
+	req, cfg := testData()
 	cfg.signerParams.MaxSkew = -time.Minute
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
-	// Issued in the future.
+func TestVerifierMaxSkew(t *testing.T) {
 	// Abuse the verifier's MaxSkew parameter to make the JWT looks like it has been signed in the
 	// future.
-	cfg = *defaultConfig
+	req, cfg := testData()
 	cfg.maxSkew = -time.Minute
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
+func TestBadPublicKey(t *testing.T) {
 	// Mismatch public/private keys.
-	cfg = *defaultConfig
+	req, cfg := testData()
 	cfg.services.sendBadPubKey = true
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
+}
 
-	cfg = *defaultConfig
-	cfg.services.sendBadPrivKey = true
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
-
-	// Wrong issuer (leads to a bad/unknown private key).
-	cfg = *defaultConfig
+func TestBadIssuer(t *testing.T) {
+	// Mismatch public/private keys.
+	req, cfg := testData()
 	cfg.signerParams.Issuer = "dummy"
-	assert.Error(t, signAndVerify(t, req, cfg, nil))
+	signAndModify(t, req, *cfg, nil)
+	assert.Error(t, Verify(req, *cfg))
 }
 
 type signAndVerifyParams struct {
@@ -227,24 +255,28 @@ type signAndVerifyParams struct {
 	signerParams config.SignerParams
 
 	// Verify.
-	aud     *url.URL
+	aud     string
 	maxSkew time.Duration
 	maxTTL  time.Duration
 }
 
 type requestModifier func(req *http.Request)
 
-func signAndVerify(t *testing.T, req *http.Request, p signAndVerifyParams, modify requestModifier) error {
+
+func signAndModify(t *testing.T, req *http.Request, p signAndVerifyParams, modify requestModifier) *http.Request {
 	// Sign.
 	pk, _ := p.services.GetPrivateKey()
-	assert.Nil(t, Sign(req, pk, p.signerParams))
+	assert.Nil(t, jwt.Sign(req, pk, p.signerParams))
 
 	// Modify signed request.
 	if modify != nil {
 		modify(req)
 	}
+	return req
+}
 
+func Verify(req *http.Request, p signAndVerifyParams) error {
 	// Verify.
-	_, err := Verify(req, p.services, p.services, p.aud, p.maxSkew, p.maxTTL)
+	_, err := jwt.Verify(req, p.services, p.services, p.aud, p.maxSkew, p.maxTTL)
 	return err
 }

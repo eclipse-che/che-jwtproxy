@@ -68,7 +68,7 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 	return nil
 }
 
-func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, audience *url.URL, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
+func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
 	// Extract token from cookie.
 	cookieExtractor := oidc.CookieTokenExtractor("access_token")
 	token, err := cookieExtractor(req)
@@ -106,10 +106,16 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	if !exists || err != nil {
 		return nil, errors.New("Missing or invalid 'iss' claim")
 	}
-	aud, exists, err := claims.StringClaim("aud")
-	if !exists || err != nil || !verifyAudience(aud, audience) {
-		return nil, errors.New("Missing or invalid 'aud' claim")
+	if expectedAudience != "" {
+		aud, _, err := claims.StringClaim("aud")
+		if err != nil {
+			return nil, errors.New("Invalid 'aud' claim")
+		}
+		if !verifyAudience(aud, expectedAudience) {
+			return nil, errors.New("Error - 'aud' claim mismatch")
+		}
 	}
+
 	exp, exists, err := claims.TimeClaim("exp")
 	if !exists || err != nil || exp.Before(now) {
 		return nil, errors.New("Missing or invalid 'exp' claim")
@@ -152,12 +158,19 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	return claims, nil
 }
 
-func verifyAudience(actual string, expected *url.URL) bool {
-	actualURL, err := url.Parse(actual)
-	if err != nil {
+func verifyAudience(actual string, expected string) bool {
+	actualURL, actualErr := url.ParseRequestURI(actual)
+	expectedURL, expectedErr := url.ParseRequestURI(expected)
+	if actualErr == nil && expectedErr == nil {
+		// both are URL's
+		return strings.EqualFold(actualURL.Scheme+"://"+actualURL.Host, expectedURL.Scheme+"://"+expectedURL.Host)
+	} else if actualErr != nil && expectedErr!= nil {
+		// both are simple strings
+		return actual == expected
+	} else {
+		// One is URL and another is not, which is not valid
 		return false
 	}
-	return strings.EqualFold(actualURL.Scheme+"://"+actualURL.Host, expected.Scheme+"://"+expected.Host)
 }
 
 // https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-golang
