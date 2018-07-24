@@ -80,6 +80,15 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 		return nil, errors.New("no key server specified")
 	}
 
+	var Url *url.URL
+	if cfg.AuthRedirect != "" {
+		tmp, err := url.Parse(cfg.AuthRedirect)
+		if err != nil {
+			return nil, errors.New("invalid auth redirect specified")
+		}
+		Url = tmp
+	}
+
 	stopper := stop.NewGroup()
 
 	// Create a KeyServer that will provide public keys for signature verification.
@@ -121,10 +130,14 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
 		if err != nil {
-			if _, ok := err.(*invalidTokenError); ok {
-				if cfg.AuthRedirect != "" {
+			if authErr, ok := err.(*authRequiredError); ok {
+				if Url != nil {
+					v := Url.Query()
+					v.Set("workspaceId", cfg.Audience)
+					v.Set("redirectUrl", authErr.requestUri)
+					Url.RawQuery = v.Encode()
 					resp := goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusFound, "")
-					resp.Header.Add("Location", cfg.AuthRedirect)
+					resp.Header.Add("Location", Url.String())
 					return r, resp
 				}
 			}
