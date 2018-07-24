@@ -80,7 +80,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 			token = req.URL.Query().Get("token")
 			if token == "" {
 				// Not found anywhere
-				return nil, errors.New("No JWT found")
+				return nil, &invalidTokenError{"No JWT found", false, false}
 			}
 		}
 	}
@@ -117,8 +117,11 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	}
 
 	exp, exists, err := claims.TimeClaim("exp")
-	if !exists || err != nil || exp.Before(now) {
+	if !exists || err != nil {
 		return nil, errors.New("Missing or invalid 'exp' claim")
+	}
+	if exp.Before(now) {
+		return  nil, &invalidTokenError{"Token is expired", true, true}
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
@@ -189,3 +192,14 @@ func generateNonce(n int) string {
 	}
 	return string(b)
 }
+
+type invalidTokenError struct {
+	err     string
+	exists  bool
+	expired bool
+}
+
+func (e *invalidTokenError) Error() string {
+	return e.err
+}
+

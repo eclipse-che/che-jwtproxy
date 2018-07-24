@@ -121,6 +121,13 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
 		if err != nil {
+			if _, ok := err.(*invalidTokenError); ok {
+				if cfg.AuthRedirect != "" {
+					resp := goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusFound, "")
+					resp.Header.Add("Location", cfg.AuthRedirect)
+					return r, resp
+				}
+			}
 			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, fmt.Sprintf("jwtproxy: unable to verify request: %s", err))
 		}
 
