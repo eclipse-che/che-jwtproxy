@@ -135,7 +135,7 @@ func NewProxy(proxyHandler Handler, caKeyPath, caCertPath string, insecureSkipVe
 	return &Proxy{ProxyHttpServer: proxy}, nil
 }
 
-func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, excludes... *regexp.Regexp) (*Proxy, error) {
+func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, authHandler Handler, authServicePath string, excludes... *regexp.Regexp) (*Proxy, error) {
 	// Create a reverse proxy.
 	reverseProxy := goproxy.NewReverseProxyHttpServer()
 	reverseProxy.Tr = http.DefaultTransport.(*http.Transport)
@@ -143,6 +143,11 @@ func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, excludes... 
 
 	// Handle requests with the validation handler.
 	reverseProxy.OnRequest(goproxy.Not(IsCorsPreflight()), goproxy.Not(UrlMatches(excludes...))).DoFunc(vefiyingHandler)
+
+	if authServicePath != "" {
+		// Auth
+		reverseProxy.OnRequest(goproxy.UrlHasPrefix(authServicePath)).DoFunc(authHandler)
+	}
 	// Cors or excludes
 	reverseProxy.OnRequest(IsCorsPreflight()).DoFunc(proxyHandler)
 	reverseProxy.OnRequest(UrlMatches(excludes...)).DoFunc(proxyHandler)

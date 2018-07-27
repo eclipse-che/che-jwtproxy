@@ -32,6 +32,7 @@ import (
 	"github.com/eclipse/che-jwtproxy/jwt/privatekey"
 	"github.com/eclipse/che-jwtproxy/proxy"
 	"github.com/eclipse/che-jwtproxy/stop"
+	"github.com/coreos/go-oidc/oidc"
 )
 
 type StoppableProxyHandler struct {
@@ -156,6 +157,31 @@ func NewReverseProxyHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, 
 		// Route the request to upstream.
 		route(r, ctx)
 		return r, nil
+	}
+
+	return &StoppableProxyHandler{
+		Handler:  handler,
+		stopFunc: stopper.Stop,
+	}, nil
+}
+
+
+// Set cookie with token passed in authentication header
+func NewAuthenticationHandler() (*StoppableProxyHandler, error) {
+
+	stopper := stop.NewGroup()
+
+	// Create a reverse proxy.Handler that will proxy request to upstream
+	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+		token, err := oidc.ExtractBearerToken(r)
+		if err != nil {
+			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "No token found in request")
+		}
+		resp := goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusNoContent, "")
+		cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true}
+		// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
+		resp.Header.Add("Set-Cookie", cookie.String())
+		return r, resp
 	}
 
 	return &StoppableProxyHandler{
