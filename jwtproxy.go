@@ -105,6 +105,9 @@ func StartReverseProxy(rpConfig config.VerifierProxyConfig, stopper *stop.Group,
 	//Create simple (non-verifying) handler
 	proxier, err := jwt.NewReverseProxyHandler(rpConfig.Verifier)
 
+	//Create auth handler
+	auth, err := jwt.NewAuthenticationHandler()
+
 	var excludes []*regexp.Regexp
 	for _, ex := range rpConfig.Verifier.Excludes {
 		regex, err := regexp.Compile(ex)
@@ -117,7 +120,7 @@ func StartReverseProxy(rpConfig config.VerifierProxyConfig, stopper *stop.Group,
 	}
 
 	// Create reverse proxy.
-	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, excludes...)
+	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, auth.Handler, rpConfig.Verifier.AuthServicePath, excludes...)
 	if err != nil {
 		stopper.Add(verifier)
 		abort <- fmt.Errorf("Failed to create reverse proxy: %s", err)
