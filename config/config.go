@@ -115,13 +115,13 @@ type SignerProxyConfig struct {
 type VerifierConfig struct {
 	Upstream        URL                          `yaml:"upstream"`
 	// Changed to string to be more JWT spec compliant - it can be either string or URL
-	Audience           string                       `yaml:"audience"`
-	MaxSkew            time.Duration                `yaml:"max_skew"`
-	MaxTTL             time.Duration                `yaml:"max_ttl"`
-	KeyServer          RegistrableComponentConfig   `yaml:"key_server"`
-	NonceStorage       RegistrableComponentConfig   `yaml:"nonce_storage"`
-	Excludes           []string                     `yaml:"excludes"`
-	ClaimsVerifiers    []RegistrableComponentConfig `yaml:"claims_verifiers"`
+	Audience         string                       `yaml:"audience"`
+	MaxSkew          time.Duration                `yaml:"max_skew"`
+	MaxTTL           time.Duration                `yaml:"max_ttl"`
+	KeyServer        RegistrableComponentConfig   `yaml:"key_server"`
+	NonceStorage     RegistrableComponentConfig   `yaml:"nonce_storage"`
+	Excludes         []string                     `yaml:"excludes"`
+	ClaimsVerifiers  []RegistrableComponentConfig `yaml:"claims_verifiers"`
 }
 
 type SignerParams struct {
