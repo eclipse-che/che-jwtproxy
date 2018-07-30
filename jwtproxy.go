@@ -120,7 +120,7 @@ func StartReverseProxy(rpConfig config.VerifierProxyConfig, stopper *stop.Group,
 	}
 
 	// Create reverse proxy.
-	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, auth.Handler, rpConfig.Verifier.AuthServicePath, excludes...)
+	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, auth.Handler, "/jwt/auth", excludes...)
 	if err != nil {
 		stopper.Add(verifier)
 		abort <- fmt.Errorf("Failed to create reverse proxy: %s", err)

@@ -120,7 +120,6 @@ type VerifierConfig struct {
 	MaxTTL             time.Duration                `yaml:"max_ttl"`
 	KeyServer          RegistrableComponentConfig   `yaml:"key_server"`
 	NonceStorage       RegistrableComponentConfig   `yaml:"nonce_storage"`
-	AuthServicePath    string                       `yaml:"auth_path"`
 	Excludes           []string                     `yaml:"excludes"`
 	ClaimsVerifiers    []RegistrableComponentConfig `yaml:"claims_verifiers"`
 }
