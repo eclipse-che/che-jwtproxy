@@ -214,6 +214,9 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			}
 			resp = goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusNoContent, "")
 			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: "/"}
+			if Url.Scheme == "https" {
+				cookie.Secure = true
+			}
 			// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
 			resp.Header.Add("Set-Cookie", cookie.String())
 		}
