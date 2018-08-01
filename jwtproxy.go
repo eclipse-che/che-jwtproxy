@@ -104,7 +104,7 @@ func StartReverseProxy(rpConfig config.VerifierProxyConfig, stopper *stop.Group,
 	proxier, err := jwt.NewReverseProxyHandler(rpConfig.Verifier)
 
 	//Create auth handler
-	auth, err := jwt.NewAuthenticationHandler()
+	auth, err := jwt.NewAuthenticationHandler(rpConfig.Verifier)
 
 	var excludes []*regexp.Regexp
 	for _, ex := range rpConfig.Verifier.Excludes {
