@@ -187,20 +187,41 @@ func NewReverseProxyHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, 
 
 
 // Set cookie with token passed in authentication header
-func NewAuthenticationHandler() (*StoppableProxyHandler, error) {
+func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, error) {
 
 	stopper := stop.NewGroup()
 
+	var Url *url.URL
+	if cfg.AuthRedirect != "" {
+		tmp, err := url.Parse(cfg.AuthRedirect)
+		if err != nil {
+			return nil, errors.New("invalid auth redirect specified")
+		}
+		Url = tmp
+	}
+
 	// Create a reverse proxy.Handler that will proxy request to upstream
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		token, err := oidc.ExtractBearerToken(r)
-		if err != nil {
-			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "No token found in request")
+		var resp *http.Response
+		if r.Method == "OPTIONS" {
+			resp = goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusOK, "")
+			resp.Header.Add("Access-Control-Allow-Headers", "authorization,origin,access-control-allow-origin,access-control-request-headers,content-type,access-control-request-method,accept")
+			resp.Header.Add("Access-Control-Allow-Methods", "GET")
+		} else {
+			token, err := oidc.ExtractBearerToken(r)
+			if err != nil {
+				return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "No token found in request")
+			}
+			resp = goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusNoContent, "")
+			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: "/"}
+			if Url.Scheme == "https" {
+				cookie.Secure = true
+			}
+			// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
+			resp.Header.Add("Set-Cookie", cookie.String())
 		}
-		resp := goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusNoContent, "")
-		cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true}
-		// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
-		resp.Header.Add("Set-Cookie", cookie.String())
+		resp.Header.Add("Access-Control-Allow-Origin", Url.Scheme + "://" + Url.Host)
+		resp.Header.Add("Access-Control-Allow-Credentials", "true")
 		return r, resp
 	}
 
