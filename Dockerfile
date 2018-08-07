@@ -1,23 +1,24 @@
-# Copyright 2015 CoreOS, Inc
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Copyright (c) 2012-2018 Red Hat, Inc.
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
 #
-#     http:#www.apache.org/licenses/LICENSE-2.0
+# SPDX-License-Identifier: EPL-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Contributors:
+#   Red Hat, Inc. - initial API and implementation
+#
+
+FROM golang:1.10.3 as builder
+WORKDIR /go/src/github.com/eclipse/che-jwtproxy/
+COPY . .
+RUN GO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
+
 
 FROM alpine:3.7
-
 ENV XDG_CONFIG_HOME=/config/
 VOLUME /config
-
+COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]
 CMD ["-config", "/config/config.yaml"]
-
-ADD jwtproxy /usr/local/bin
