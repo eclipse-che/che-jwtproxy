@@ -22,5 +22,3 @@ VOLUME /config
 COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]
 CMD ["-config", "/config/config.yaml"]
-
-
