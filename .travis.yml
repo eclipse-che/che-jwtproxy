@@ -12,21 +12,8 @@ before_script:
   - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ] && [ -z "$TRAVIS_PULL_REQUEST_BRANCH" ]; then echo "latest"; elif [ "$TRAVIS_PULL_REQUEST_BRANCH" ]; then echo "$TRAVIS_PULL_REQUEST_BRANCH"; else echo "$TRAVIS_BRANCH"; fi`
 before_deploy:
 - CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
-- echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-- export REPO=ksmster/jwtproxy
-- docker pull $REPO:latest
-- docker build --cache-from $REPO:latest -f Dockerfile -t  $REPO:$TAG .
-- docker tag $REPO:$TAG $REPO:latest
-- docker push $REPO
 after_success:
 - CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
-- echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-- export REPO=ksmster/jwtproxy
-- docker pull $REPO:latest
-- docker build --cache-from $REPO:latest -f Dockerfile -t  $REPO:$COMMIT .
-- docker tag $REPO:$COMMIT $REPO:$TAG
-- docker tag $REPO:$COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER
-- docker push $REPO
 deploy:
   skip_cleanup: true
   provider: releases
