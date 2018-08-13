@@ -80,13 +80,13 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 		return nil, errors.New("no key server specified")
 	}
 
-	var Url *url.URL
+	var redirectUrl *url.URL
 	if cfg.AuthRedirect != "" {
 		tmp, err := url.Parse(cfg.AuthRedirect)
 		if err != nil {
 			return nil, errors.New("invalid auth redirect specified")
 		}
-		Url = tmp
+		redirectUrl = tmp
 	}
 
 	stopper := stop.NewGroup()
@@ -131,13 +131,13 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
 		if err != nil {
 			if authErr, ok := err.(*authRequiredError); ok {
-				if Url != nil {
-					v := Url.Query()
+				if redirectUrl != nil {
+					v := redirectUrl.Query()
 					v.Set("workspaceId", cfg.Audience)
 					v.Set("redirectUrl", authErr.requestUri)
-					Url.RawQuery = v.Encode()
+					redirectUrl.RawQuery = v.Encode()
 					resp := goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusFound, "")
-					resp.Header.Add("Location", Url.String())
+					resp.Header.Add("Location", redirectUrl.String())
 					return r, resp
 				}
 			}
@@ -190,13 +190,13 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 
 	stopper := stop.NewGroup()
 
-	var Url *url.URL
+	var redirectUrl *url.URL
 	if cfg.AuthRedirect != "" {
 		tmp, err := url.Parse(cfg.AuthRedirect)
 		if err != nil {
 			return nil, errors.New("invalid auth redirect specified")
 		}
-		Url = tmp
+		redirectUrl = tmp
 	}
 
 	// Create a reverse proxy.Handler that will proxy request to upstream
@@ -213,13 +213,13 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			}
 			resp = goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusNoContent, "")
 			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: "/"}
-			if Url.Scheme == "https" {
+			if redirectUrl.Scheme == "https" {
 				cookie.Secure = true
 			}
 			// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
 			resp.Header.Add("Set-Cookie", cookie.String())
 		}
-		resp.Header.Add("Access-Control-Allow-Origin", Url.Scheme+"://"+Url.Host)
+		resp.Header.Add("Access-Control-Allow-Origin", redirectUrl.Scheme+"://"+redirectUrl.Host)
 		resp.Header.Add("Access-Control-Allow-Credentials", "true")
 		return r, resp
 	}
