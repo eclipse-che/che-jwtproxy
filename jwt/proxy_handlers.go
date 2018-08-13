@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/goproxy"
 
+	"github.com/coreos/go-oidc/oidc"
 	"github.com/eclipse/che-jwtproxy/config"
 	"github.com/eclipse/che-jwtproxy/jwt/claims"
 	"github.com/eclipse/che-jwtproxy/jwt/keyserver"
@@ -32,7 +33,6 @@ import (
 	"github.com/eclipse/che-jwtproxy/jwt/privatekey"
 	"github.com/eclipse/che-jwtproxy/proxy"
 	"github.com/eclipse/che-jwtproxy/stop"
-	"github.com/coreos/go-oidc/oidc"
 )
 
 type StoppableProxyHandler struct {
@@ -185,7 +185,6 @@ func NewReverseProxyHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, 
 	}, nil
 }
 
-
 // Set cookie with token passed in authentication header
 func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, error) {
 
@@ -220,7 +219,7 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
 			resp.Header.Add("Set-Cookie", cookie.String())
 		}
-		resp.Header.Add("Access-Control-Allow-Origin", Url.Scheme + "://" + Url.Host)
+		resp.Header.Add("Access-Control-Allow-Origin", Url.Scheme+"://"+Url.Host)
 		resp.Header.Add("Access-Control-Allow-Credentials", "true")
 		return r, resp
 	}

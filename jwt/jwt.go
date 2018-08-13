@@ -121,7 +121,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, errors.New("Missing or invalid 'exp' claim")
 	}
 	if exp.Before(now) {
-		return  nil, &authRequiredError{"Token is expired", "http://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"Token is expired", "http://" + req.Host + req.URL.String()}
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
@@ -167,7 +167,7 @@ func verifyAudience(actual string, expected string) bool {
 	if actualErr == nil && expectedErr == nil {
 		// both are URL's
 		return strings.EqualFold(actualURL.Scheme+"://"+actualURL.Host, expectedURL.Scheme+"://"+expectedURL.Host)
-	} else if actualErr != nil && expectedErr!= nil {
+	} else if actualErr != nil && expectedErr != nil {
 		// both are simple strings
 		return actual == expected
 	} else {
@@ -194,11 +194,10 @@ func generateNonce(n int) string {
 }
 
 type authRequiredError struct {
-	err         string
-	requestUri  string
+	err        string
+	requestUri string
 }
 
 func (e *authRequiredError) Error() string {
 	return e.err
 }
-

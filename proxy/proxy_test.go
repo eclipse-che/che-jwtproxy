@@ -12,15 +12,15 @@
 package proxy_test
 
 import (
-	"testing"
-	"net/http"
-	"github.com/stretchr/testify/assert"
 	"github.com/coreos/goproxy"
-	"regexp"
 	"github.com/eclipse/che-jwtproxy/proxy"
+	"github.com/stretchr/testify/assert"
+	"net/http"
+	"regexp"
+	"testing"
 )
 
-var  ctx = &goproxy.ProxyCtx{}
+var ctx = &goproxy.ProxyCtx{}
 
 func TestIsCors(t *testing.T) {
 
@@ -42,11 +42,9 @@ func TestIsCors(t *testing.T) {
 	assert.False(t, preflightFunc(req4, ctx))
 }
 
-
-
 func TestUrlMatching(t *testing.T) {
 	var ExclusionTestRequests = []struct {
-		req     *http.Request
+		req      *http.Request
 		expected bool // expected result
 	}{
 		{getRequest("http://foo.bar:6666/ezz666"), false},
@@ -64,7 +62,6 @@ func TestUrlMatching(t *testing.T) {
 		assert.Equal(t, tt.expected, actual)
 	}
 }
-
 
 func getRequest(url string) *http.Request {
 	req, _ := http.NewRequest("GET", url, nil)

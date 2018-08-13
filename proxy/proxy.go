@@ -23,13 +23,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
-	"regexp"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/eclipse/che-jwtproxy/stop"
 	"github.com/coreos/goproxy"
+	"github.com/eclipse/che-jwtproxy/stop"
 	"github.com/tylerb/graceful"
 )
 
@@ -135,7 +135,7 @@ func NewProxy(proxyHandler Handler, caKeyPath, caCertPath string, insecureSkipVe
 	return &Proxy{ProxyHttpServer: proxy}, nil
 }
 
-func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, authHandler Handler, authServicePath string, excludes... *regexp.Regexp) (*Proxy, error) {
+func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, authHandler Handler, authServicePath string, excludes ...*regexp.Regexp) (*Proxy, error) {
 	// Create a reverse proxy.
 	reverseProxy := goproxy.NewReverseProxyHttpServer()
 	reverseProxy.Tr = http.DefaultTransport.(*http.Transport)

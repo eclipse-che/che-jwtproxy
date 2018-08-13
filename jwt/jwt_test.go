@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coreos/go-oidc/jose"
 	"github.com/coreos/go-oidc/key"
+	"github.com/coreos/go-oidc/oidc"
 	"github.com/eclipse/che-jwtproxy/config"
+	"github.com/eclipse/che-jwtproxy/jwt"
 	"github.com/eclipse/che-jwtproxy/stop"
 	"github.com/stretchr/testify/assert"
-	"github.com/eclipse/che-jwtproxy/jwt"
-	"github.com/coreos/go-oidc/oidc"
-	"github.com/coreos/go-oidc/jose"
 )
 
 const privateKey = `
@@ -45,7 +45,7 @@ im92fadzPg+oTXIQIjlHhGgf7CKb5VwFuH9+gA==
 
 type testService struct {
 	// privatekey
-	privkey        *key.PrivateKey
+	privkey *key.PrivateKey
 
 	// keyserver
 	issuer        string
@@ -81,7 +81,6 @@ func (ts *testService) Stop() <-chan struct{} {
 	return stop.AlreadyDone
 }
 
-
 func testData() (*http.Request, *signAndVerifyParams) {
 	// Create a request to sign.
 	req, _ := http.NewRequest("GET", "http://foo.bar:6666/ez", nil)
@@ -96,10 +95,10 @@ func testData() (*http.Request, *signAndVerifyParams) {
 
 	// Create a test service to act as a keyserver and as a privatekey provider.
 	services := &testService{
-		privkey:        pk,
-		issuer:         "issuer",
-		sendBadPubKey:  false,
-		refuseNonce:    false,
+		privkey:       pk,
+		issuer:        "issuer",
+		sendBadPubKey: false,
+		refuseNonce:   false,
 	}
 
 	// Create a default (and valid) configuration to sign and verify requests.
@@ -200,7 +199,6 @@ func TestEmptyAudience(t *testing.T) {
 	assert.Nil(t, Verify(req, *cfg))
 }
 
-
 func TestWrongTTL(t *testing.T) {
 	req, cfg := testData()
 	cfg.maxTTL = 30 * time.Second
@@ -261,7 +259,6 @@ type signAndVerifyParams struct {
 }
 
 type requestModifier func(req *http.Request)
-
 
 func signAndModify(t *testing.T, req *http.Request, p signAndVerifyParams, modify requestModifier) *http.Request {
 	// Sign.
