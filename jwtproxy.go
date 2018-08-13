@@ -117,8 +117,16 @@ func StartReverseProxy(rpConfig config.VerifierProxyConfig, stopper *stop.Group,
 		excludes = append(excludes, regex)
 	}
 
+	var authServicePath = ""
+	if rpConfig.Verifier.AuthRedirect != "" {
+		if !rpConfig.Verifier.CookiesEnabled {
+			log.Warn("Authentication service is configured to be deployed while authentication with cookies is disabled.")
+		}
+		authServicePath = "/jwt/auth"
+	}
+
 	// Create reverse proxy.
-	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, auth.Handler, "/jwt/auth", excludes...)
+	reverseProxy, err := proxy.NewReverseProxy(verifier.Handler, proxier.Handler, auth.Handler, authServicePath, excludes...)
 	if err != nil {
 		stopper.Add(verifier)
 		abort <- fmt.Errorf("Failed to create reverse proxy: %s", err)
