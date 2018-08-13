@@ -128,7 +128,7 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 
 	// Create a reverse proxy.Handler that will verify JWT from http.Requests.
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
+		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.CookiesEnabled, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
 		if err != nil {
 			if authErr, ok := err.(*authRequiredError); ok {
 				if redirectUrl != nil {

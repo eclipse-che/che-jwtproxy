@@ -111,9 +111,10 @@ func testData() (*http.Request, *signAndVerifyParams) {
 			MaxSkew:        1 * time.Minute,
 			NonceLength:    8,
 		},
-		aud:     aud,
-		maxSkew: time.Minute,
-		maxTTL:  5 * time.Minute,
+		aud:            aud,
+		maxSkew:        time.Minute,
+		maxTTL:         5 * time.Minute,
+		cookiesEnabled: true,
 	}
 
 	return req, defaultConfig
@@ -253,9 +254,10 @@ type signAndVerifyParams struct {
 	signerParams config.SignerParams
 
 	// Verify.
-	aud     string
-	maxSkew time.Duration
-	maxTTL  time.Duration
+	aud            string
+	maxSkew        time.Duration
+	maxTTL         time.Duration
+	cookiesEnabled bool
 }
 
 type requestModifier func(req *http.Request)
@@ -274,6 +276,6 @@ func signAndModify(t *testing.T, req *http.Request, p signAndVerifyParams, modif
 
 func Verify(req *http.Request, p signAndVerifyParams) error {
 	// Verify.
-	_, err := jwt.Verify(req, p.services, p.services, p.aud, p.maxSkew, p.maxTTL)
+	_, err := jwt.Verify(req, p.services, p.services, p.cookiesEnabled, p.aud, p.maxSkew, p.maxTTL)
 	return err
 }
