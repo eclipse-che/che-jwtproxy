@@ -181,6 +181,9 @@ jwtproxy:
       # Maximum total amount of time for which a JWT can be signed
       max_ttl: <time.Duration|5m>
 
+      # List of paths which should be proxied without authentication
+      excludes: <[]string|nil>
+
       # URL where unauthenticated requests should be redirected to
       # If null then 403 response code will be responded without redirection
       auth_redirect_url: <string|nil>
