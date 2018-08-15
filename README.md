@@ -251,6 +251,15 @@ nonce_storage:
     purge_interval: <time.Duration|0>
 ```
 
+#### Void Nonce Storage
+
+Configures void storage which does not do any storing or validating of nonces.
+Supposed to be used when no strict 'jti' claim uniqueness verification needed.
+
+```yaml
+nonce_storage:
+  type: void
+```
 
 ### Generate keys
 

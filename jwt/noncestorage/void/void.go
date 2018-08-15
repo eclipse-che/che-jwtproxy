@@ -27,7 +27,7 @@ func init() {
 }
 
 // Blank  implementation of the NonceStorage, which doesn't do any actual storing or validation.
-// Used when no stict 'jti' claim uniqueness verification needed and may be enabled in configuration via
+// Used when no strict 'jti' claim uniqueness verification needed and may be enabled in configuration via
 //   nonce_storage:
 //        type: void
 // property.
