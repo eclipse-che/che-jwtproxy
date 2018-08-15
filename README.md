@@ -294,10 +294,33 @@ Note that to the question `Common Name (e.g. server FQDN or YOUR name)`, you mus
 The key pair should be specified using the `key_file` and `crt_file` parameters in the [Verifier configuration](#verifier-config).
 Also, because the key pair is self-signed, the certificate must be trusted by the forward proxy. This can be done by trusting the certificate system-wide or by specifying it using the `trusted_certificates` list parameter in the [Signer configuration](#signer-config).
 
+## Run go tests
 
-## Build Linux Binary
+Run tests in project with:
+```bash
+go test ./...
+```
 
+## Build Linux Binary file locally
+
+Build Binary file locally with:
+```
+go build -o jwtproxy cmd/jwtproxy/main.go
+```
+
+Then you'll be able to run it with:
+```
+./jwtproxy -config config.yaml
+```
+
+## Build JwtProxy docker image
+
+Build JwtProxy docker image with:
 ```
 docker build -t jwtproxy .
-docker run -it --rm -v "$PWD/bin":/go/bin -w /go --entrypoint /bin/bash jwtproxy -c "go install -v github.com/coreos/jwtproxy/cmd/jwtproxy"
+```
+
+Then you'll be able to run it with:
+```
+docker run -it -v /local/folder/with/jwtproxy/:/config jwtproxy -config /config/config.yaml
 ```
