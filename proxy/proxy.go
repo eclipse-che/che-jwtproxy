@@ -23,13 +23,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
-	"regexp"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/eclipse/che-jwtproxy/stop"
 	"github.com/coreos/goproxy"
+	"github.com/eclipse/che-jwtproxy/stop"
 	"github.com/tylerb/graceful"
 )
 
@@ -135,14 +135,14 @@ func NewProxy(proxyHandler Handler, caKeyPath, caCertPath string, insecureSkipVe
 	return &Proxy{ProxyHttpServer: proxy}, nil
 }
 
-func NewReverseProxy(vefiyingHandler Handler, proxyHandler Handler, authHandler Handler, authServicePath string, excludes... *regexp.Regexp) (*Proxy, error) {
+func NewReverseProxy(verifyingHandler Handler, proxyHandler Handler, authHandler Handler, authServicePath string, excludes ...*regexp.Regexp) (*Proxy, error) {
 	// Create a reverse proxy.
 	reverseProxy := goproxy.NewReverseProxyHttpServer()
 	reverseProxy.Tr = http.DefaultTransport.(*http.Transport)
 	reverseProxy.Verbose = log.GetLevel() == log.DebugLevel
 
 	// Handle requests with the validation handler.
-	reverseProxy.OnRequest(goproxy.Not(IsCorsPreflight()), goproxy.Not(UrlMatches(excludes...))).DoFunc(vefiyingHandler)
+	reverseProxy.OnRequest(goproxy.Not(IsCorsPreflight()), goproxy.Not(UrlMatches(excludes...))).DoFunc(verifyingHandler)
 
 	if authServicePath != "" {
 		// Auth

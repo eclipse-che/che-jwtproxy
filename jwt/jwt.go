@@ -68,21 +68,34 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 	return nil
 }
 
-func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
-	// Extract token from cookie.
-	cookieExtractor := oidc.CookieTokenExtractor("access_token")
-	token, err := cookieExtractor(req)
-	if err != nil {
-		// Not found in cookie, extract from header
-		token, err = oidc.ExtractBearerToken(req)
-		if err != nil {
-			// Not found in header, extract from query
-			token = req.URL.Query().Get("token")
-			if token == "" {
-				// Not found anywhere
-				return nil, &authRequiredError{"No JWT found", "http://" + req.Host + req.URL.String()}
-			}
+func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
+	var token = ""
+
+	// Extract token from cookie if enabled.
+	if cookiesEnabled {
+		cookieExtractor := oidc.CookieTokenExtractor("access_token")
+		cookieToken, err := cookieExtractor(req)
+		if err == nil {
+			token = cookieToken
 		}
+	}
+
+	if token == "" {
+		// Not found in cookie, extract from header
+		headerToken, err := oidc.ExtractBearerToken(req)
+		if err == nil {
+			token = headerToken
+		}
+	}
+
+	if token == "" {
+		// Not found in cookies neither header, extract from query
+		token = req.URL.Query().Get("token")
+	}
+
+	if token == "" {
+		// Not found anywhere
+		return nil, &authRequiredError{"No JWT found", "http://" + req.Host + req.URL.String()}
 	}
 
 	// Parse token.
@@ -121,7 +134,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, errors.New("Missing or invalid 'exp' claim")
 	}
 	if exp.Before(now) {
-		return  nil, &authRequiredError{"Token is expired", "http://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"Token is expired", "http://" + req.Host + req.URL.String()}
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
@@ -167,7 +180,7 @@ func verifyAudience(actual string, expected string) bool {
 	if actualErr == nil && expectedErr == nil {
 		// both are URL's
 		return strings.EqualFold(actualURL.Scheme+"://"+actualURL.Host, expectedURL.Scheme+"://"+expectedURL.Host)
-	} else if actualErr != nil && expectedErr!= nil {
+	} else if actualErr != nil && expectedErr != nil {
 		// both are simple strings
 		return actual == expected
 	} else {
@@ -194,11 +207,10 @@ func generateNonce(n int) string {
 }
 
 type authRequiredError struct {
-	err         string
-	requestUri  string
+	err        string
+	requestUri string
 }
 
 func (e *authRequiredError) Error() string {
 	return e.err
 }
-

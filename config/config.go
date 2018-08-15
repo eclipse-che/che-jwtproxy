@@ -116,6 +116,7 @@ type VerifierConfig struct {
 	Upstream        URL                          `yaml:"upstream"`
 	// Changed to string to be more JWT spec compliant - it can be either string or URL
 	Audience        string                       `yaml:"audience"`
+	CookiesEnabled  bool                         `yaml:"auth_cookies_enabled"`
 	AuthRedirect    string                       `yaml:"auth_redirect_url"`
 	MaxSkew         time.Duration                `yaml:"max_skew"`
 	MaxTTL          time.Duration                `yaml:"max_ttl"`

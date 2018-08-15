@@ -32,7 +32,7 @@ func init() {
 //        type: void
 // property.
 
-type Void struct {}
+type Void struct{}
 
 func constructor(registrableComponentConfig config.RegistrableComponentConfig) (noncestorage.NonceStorage, error) {
 	return &Void{}, nil
