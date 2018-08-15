@@ -181,6 +181,14 @@ jwtproxy:
       # Maximum total amount of time for which a JWT can be signed
       max_ttl: <time.Duration|5m>
 
+      # URL where unauthenticated requests should be redirected to
+      # If null then 403 response code will be responded without redirection
+      auth_redirect_url: <string|nil>
+
+      # Configures whether token should be searched in cookie `access_token`
+      # `false` by default, so JwtProxy ignores token specified in cookies
+      cookies_enabled: <bool|nil>
+
       # Registerable key server type and options used to fetch
       # public keys for verifying signatures
       key_server:
