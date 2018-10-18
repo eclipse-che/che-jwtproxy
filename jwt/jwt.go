@@ -95,7 +95,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 
 	if token == "" {
 		// Not found anywhere
-		return nil, &authRequiredError{"No JWT found", "http://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"No JWT found", req.URL.Scheme + "://" + req.Host + req.URL.String()}
 	}
 
 	// Parse token.
@@ -134,7 +134,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, errors.New("Missing or invalid 'exp' claim")
 	}
 	if exp.Before(now) {
-		return nil, &authRequiredError{"Token is expired", "http://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"Token is expired", req.URL.Scheme + "://" + req.Host + req.URL.String()}
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
