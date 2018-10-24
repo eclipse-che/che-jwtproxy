@@ -69,8 +69,11 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 }
 
 func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
+	var protocol = "http"
+	if req.TLS != nil {
+		protocol = "https"
+	}
 	var token = ""
-
 	// Extract token from cookie if enabled.
 	if cookiesEnabled {
 		cookieExtractor := oidc.CookieTokenExtractor("access_token")
@@ -95,7 +98,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 
 	if token == "" {
 		// Not found anywhere
-		return nil, &authRequiredError{"No JWT found", req.URL.Scheme + "://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"No JWT found", protocol + "://" + req.Host + req.URL.String()}
 	}
 
 	// Parse token.
@@ -134,7 +137,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, errors.New("Missing or invalid 'exp' claim")
 	}
 	if exp.Before(now) {
-		return nil, &authRequiredError{"Token is expired", req.URL.Scheme + "://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"Token is expired", protocol + "://" + req.Host + req.URL.String()}
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
