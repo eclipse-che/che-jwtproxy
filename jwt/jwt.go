@@ -69,8 +69,8 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 }
 
 func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
-	var protocol = "http"
-	if req.TLS != nil {
+	protocol := "http"
+	if req.Header.Get("X-Forwarded-Proto") == "https" {
 		protocol = "https"
 	}
 	var token = ""
