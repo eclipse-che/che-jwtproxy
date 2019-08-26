@@ -128,7 +128,7 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 
 	// Create a reverse proxy.Handler that will verify JWT from http.Requests.
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
-		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.CookiesEnabled, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL)
+		signedClaims, err := Verify(r, keyServer, nonceStorage, cfg.CookiesEnabled, cfg.Audience, cfg.MaxSkew, cfg.MaxTTL, cfg.AuthErrorRedirectURIPrefix)
 		if err != nil {
 			if authErr, ok := err.(*authRequiredError); ok {
 				if redirectUrl != nil {
@@ -206,13 +206,23 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			resp = goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusOK, "")
 			resp.Header.Add("Access-Control-Allow-Headers", "authorization,origin,access-control-allow-origin,access-control-request-headers,content-type,access-control-request-method,accept")
 			resp.Header.Add("Access-Control-Allow-Methods", "GET")
+		} else if !cfg.CookiesEnabled {
+			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "Cookies are disabled for this endpoint. You need to provide the access token on your own.")
 		} else {
 			token, err := oidc.ExtractBearerToken(r)
 			if err != nil {
 				return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "No token found in request")
 			}
 			resp = goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusNoContent, "")
-			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: "/"}
+
+			var cookiePath string
+			if cfg.CookiePath == "" {
+				cookiePath = "/"
+			} else {
+				cookiePath = cfg.CookiePath
+			}
+
+			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: cookiePath}
 			if redirectUrl.Scheme == "https" {
 				cookie.Secure = true
 			}

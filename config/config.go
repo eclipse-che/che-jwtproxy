@@ -20,7 +20,7 @@ import (
 	"os"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // URL is a custom URL type that allows validation at configuration load time.
@@ -113,17 +113,19 @@ type SignerProxyConfig struct {
 }
 
 type VerifierConfig struct {
-	Upstream        URL                          `yaml:"upstream"`
+	Upstream URL `yaml:"upstream"`
 	// Changed to string to be more JWT spec compliant - it can be either string or URL
-	Audience        string                       `yaml:"audience"`
-	CookiesEnabled  bool                         `yaml:"auth_cookies_enabled"`
-	AuthRedirect    string                       `yaml:"auth_redirect_url"`
-	MaxSkew         time.Duration                `yaml:"max_skew"`
-	MaxTTL          time.Duration                `yaml:"max_ttl"`
-	KeyServer       RegistrableComponentConfig   `yaml:"key_server"`
-	NonceStorage    RegistrableComponentConfig   `yaml:"nonce_storage"`
-	Excludes        []string                     `yaml:"excludes"`
-	ClaimsVerifiers []RegistrableComponentConfig `yaml:"claims_verifiers"`
+	Audience                   string                       `yaml:"audience"`
+	CookiesEnabled             bool                         `yaml:"auth_cookies_enabled"`
+	CookiePath                 string                       `yaml:"cookie_path"`
+	AuthRedirect               string                       `yaml:"auth_redirect_url"`
+	MaxSkew                    time.Duration                `yaml:"max_skew"`
+	MaxTTL                     time.Duration                `yaml:"max_ttl"`
+	KeyServer                  RegistrableComponentConfig   `yaml:"key_server"`
+	NonceStorage               RegistrableComponentConfig   `yaml:"nonce_storage"`
+	Excludes                   []string                     `yaml:"excludes"`
+	ClaimsVerifiers            []RegistrableComponentConfig `yaml:"claims_verifiers"`
+	AuthErrorRedirectURIPrefix string                       `yaml:"auth_error_redirect_uri_prefix"`
 }
 
 type SignerParams struct {

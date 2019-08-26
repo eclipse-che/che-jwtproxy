@@ -68,14 +68,25 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 	return nil
 }
 
-func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration) (jose.Claims, error) {
+func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration, authErrorRedirectPrefix string) (jose.Claims, error) {
 	protocol := "http"
 	if req.Header.Get("X-Forwarded-Proto") == "https" {
 		protocol = "https"
 	}
-	var token = ""
-	// Extract token from cookie if enabled.
-	if cookiesEnabled {
+
+	// First, try to find the token in the query params
+	var token = req.URL.Query().Get("token")
+
+	// Try to extract the token from the header
+	if token == "" {
+		headerToken, err := oidc.ExtractBearerToken(req)
+		if err == nil {
+			token = headerToken
+		}
+	}
+
+	// Try to extract token from cookie if enabled.
+	if token == "" && cookiesEnabled {
 		cookieExtractor := oidc.CookieTokenExtractor("access_token")
 		cookieToken, err := cookieExtractor(req)
 		if err == nil {
@@ -84,21 +95,8 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	}
 
 	if token == "" {
-		// Not found in cookie, extract from header
-		headerToken, err := oidc.ExtractBearerToken(req)
-		if err == nil {
-			token = headerToken
-		}
-	}
-
-	if token == "" {
-		// Not found in cookies neither header, extract from query
-		token = req.URL.Query().Get("token")
-	}
-
-	if token == "" {
 		// Not found anywhere
-		return nil, &authRequiredError{"No JWT found", protocol + "://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"No JWT found", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 
 	// Parse token.
@@ -116,43 +114,43 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	now := time.Now().UTC()
 	kid, exists := jwt.Header["kid"]
 	if !exists {
-		return nil, errors.New("Missing 'kid' claim")
+		return nil, &authRequiredError{"Missing 'kid' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	iss, exists, err := claims.StringClaim("iss")
 	if !exists || err != nil {
-		return nil, errors.New("Missing or invalid 'iss' claim")
+		return nil, &authRequiredError{"Missing or invalid 'iss' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	if expectedAudience != "" {
 		aud, _, err := claims.StringClaim("aud")
 		if err != nil {
-			return nil, errors.New("Invalid 'aud' claim")
+			return nil, &authRequiredError{"Invalid 'aud' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 		}
 		if !verifyAudience(aud, expectedAudience) {
-			return nil, errors.New("Error - 'aud' claim mismatch")
+			return nil, &authRequiredError{"Error - 'aud' claim mismatch", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 		}
 	}
 
 	exp, exists, err := claims.TimeClaim("exp")
 	if !exists || err != nil {
-		return nil, errors.New("Missing or invalid 'exp' claim")
+		return nil, &authRequiredError{"Missing or invalid 'exp' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	if exp.Before(now) {
-		return nil, &authRequiredError{"Token is expired", protocol + "://" + req.Host + req.URL.String()}
+		return nil, &authRequiredError{"Token is expired", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
-		return nil, errors.New("Missing or invalid 'nbf' claim")
+		return nil, &authRequiredError{"Missing or invalid 'nbf' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	iat, exists, err := claims.TimeClaim("iat")
 	if !exists || err != nil || iat.Add(-maxSkew).After(now) {
-		return nil, errors.New("Missing or invalid 'iat' claim")
+		return nil, &authRequiredError{"Missing or invalid 'iat' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	if exp.Sub(iat) > maxTTL {
-		return nil, errors.New("Invalid 'exp' claim (too long)")
+		return nil, &authRequiredError{"Invalid 'exp' claim (too long)", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 	jti, exists, err := claims.StringClaim("jti")
 	if !exists || err != nil || !nonceVerifier.Verify(jti, exp) {
-		return nil, errors.New("Missing or invalid 'jti' claim")
+		return nil, &authRequiredError{"Missing or invalid 'jti' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 
 	// Verify signature.
@@ -161,17 +159,17 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, err
 	} else if err != nil {
 		log.Errorf("Could not get public key from key server: %s", err)
-		return nil, errors.New("Unexpected key server error")
+		return nil, &authRequiredError{"Unexpected key server error", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 
 	verifier, err := publicKey.Verifier()
 	if err != nil {
 		log.Errorf("Could not create JWT verifier for public key '%s': %s", publicKey.ID(), err)
-		return nil, errors.New("Unexpected verifier initialization failure")
+		return nil, &authRequiredError{"Unexpected verifier initialization failure", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 
 	if verifier.Verify(jwt.Signature, []byte(jwt.Data())) != nil {
-		return nil, errors.New("Invalid JWT signature")
+		return nil, &authRequiredError{"Invalid JWT signature", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
 	}
 
 	return claims, nil
@@ -182,10 +180,20 @@ func verifyAudience(actual string, expected string) bool {
 	expectedURL, expectedErr := url.ParseRequestURI(expected)
 	if actualErr == nil && expectedErr == nil {
 		// both are URL's
-		return strings.EqualFold(actualURL.Scheme+"://"+actualURL.Host, expectedURL.Scheme+"://"+expectedURL.Host)
+		ret := strings.EqualFold(actualURL.Scheme+"://"+actualURL.Host, expectedURL.Scheme+"://"+expectedURL.Host)
+		if !ret {
+			log.Errorf("aud verification failed. actual: %s, expected: %s", actual, expected)
+		}
+
+		return ret
 	} else if actualErr != nil && expectedErr != nil {
 		// both are simple strings
-		return actual == expected
+		ret := actual == expected
+		if !ret {
+			log.Errorf("aud verification failed. actual: %s, expected: %s", actual, expected)
+		}
+
+		return ret
 	} else {
 		// One is URL and another is not, which is not valid
 		return false
