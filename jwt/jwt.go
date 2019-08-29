@@ -96,7 +96,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 
 	if token == "" {
 		// Not found anywhere
-		return nil, &authRequiredError{"No JWT found", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("No JWT found", protocol, authErrorRedirectPrefix, req)
 	}
 
 	// Parse token.
@@ -114,43 +114,43 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	now := time.Now().UTC()
 	kid, exists := jwt.Header["kid"]
 	if !exists {
-		return nil, &authRequiredError{"Missing 'kid' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Missing 'kid' claim", protocol, authErrorRedirectPrefix, req)
 	}
 	iss, exists, err := claims.StringClaim("iss")
 	if !exists || err != nil {
-		return nil, &authRequiredError{"Missing or invalid 'iss' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Missing or invalid 'iss' claim", protocol, authErrorRedirectPrefix, req)
 	}
 	if expectedAudience != "" {
 		aud, _, err := claims.StringClaim("aud")
 		if err != nil {
-			return nil, &authRequiredError{"Invalid 'aud' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+			return nil, constructVerificationError("Invalid 'aud' claim", protocol, authErrorRedirectPrefix, req)
 		}
 		if !verifyAudience(aud, expectedAudience) {
-			return nil, &authRequiredError{"Error - 'aud' claim mismatch", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+			return nil, constructVerificationError("Error - 'aud' claim mismatch", protocol, authErrorRedirectPrefix, req)
 		}
 	}
 
 	exp, exists, err := claims.TimeClaim("exp")
 	if !exists || err != nil {
-		return nil, &authRequiredError{"Missing or invalid 'exp' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Missing or invalid 'exp' claim", protocol, authErrorRedirectPrefix, req)
 	}
 	if exp.Before(now) {
-		return nil, &authRequiredError{"Token is expired", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Token is expired", protocol, authErrorRedirectPrefix, req)
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
-		return nil, &authRequiredError{"Missing or invalid 'nbf' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Missing or invalid 'nbf' claim", protocol, authErrorRedirectPrefix, req)
 	}
 	iat, exists, err := claims.TimeClaim("iat")
 	if !exists || err != nil || iat.Add(-maxSkew).After(now) {
-		return nil, &authRequiredError{"Missing or invalid 'iat' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Missing or invalid 'iat' claim", protocol, authErrorRedirectPrefix, req)
 	}
 	if exp.Sub(iat) > maxTTL {
-		return nil, &authRequiredError{"Invalid 'exp' claim (too long)", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Invalid 'exp' claim (too long)", protocol, authErrorRedirectPrefix, req)
 	}
 	jti, exists, err := claims.StringClaim("jti")
 	if !exists || err != nil || !nonceVerifier.Verify(jti, exp) {
-		return nil, &authRequiredError{"Missing or invalid 'jti' claim", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Missing or invalid 'jti' claim", protocol, authErrorRedirectPrefix, req)
 	}
 
 	// Verify signature.
@@ -159,20 +159,35 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, err
 	} else if err != nil {
 		log.Errorf("Could not get public key from key server: %s", err)
-		return nil, &authRequiredError{"Unexpected key server error", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Unexpected key server error", protocol, authErrorRedirectPrefix, req)
 	}
 
 	verifier, err := publicKey.Verifier()
 	if err != nil {
 		log.Errorf("Could not create JWT verifier for public key '%s': %s", publicKey.ID(), err)
-		return nil, &authRequiredError{"Unexpected verifier initialization failure", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Unexpected verifier initialization failure", protocol, authErrorRedirectPrefix, req)
 	}
 
 	if verifier.Verify(jwt.Signature, []byte(jwt.Data())) != nil {
-		return nil, &authRequiredError{"Invalid JWT signature", protocol + "://" + req.Host + authErrorRedirectPrefix + req.URL.String()}
+		return nil, constructVerificationError("Invalid JWT signature", protocol, authErrorRedirectPrefix, req)
 	}
 
 	return claims, nil
+}
+
+func constructVerificationError(message string, protocol string, pathPrefix string, req *http.Request) error {
+	url := composeRedirectURL(protocol, req, pathPrefix)
+	return &authRequiredError{message, url}
+}
+
+func composeRedirectURL(protocol string, req *http.Request, pathPrefix string) string {
+	u := *req.URL
+
+	u.Path = singleJoiningSlash(singleJoiningSlash("/", pathPrefix), u.Path)
+	u.Host = req.Host
+	u.Scheme = protocol
+
+	return u.String()
 }
 
 func verifyAudience(actual string, expected string) bool {
