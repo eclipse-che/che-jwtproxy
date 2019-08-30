@@ -68,7 +68,7 @@ func Sign(req *http.Request, key *key.PrivateKey, params config.SignerParams) er
 	return nil
 }
 
-func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration, authErrorRedirectPrefix string) (jose.Claims, error) {
+func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncestorage.NonceStorage, cookiesEnabled bool, expectedAudience string, maxSkew time.Duration, maxTTL time.Duration, publicBasePath string) (jose.Claims, error) {
 	protocol := "http"
 	if req.Header.Get("X-Forwarded-Proto") == "https" {
 		protocol = "https"
@@ -96,7 +96,7 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 
 	if token == "" {
 		// Not found anywhere
-		return nil, constructVerificationError("No JWT found", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("No JWT found", protocol, publicBasePath, req)
 	}
 
 	// Parse token.
@@ -114,43 +114,43 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 	now := time.Now().UTC()
 	kid, exists := jwt.Header["kid"]
 	if !exists {
-		return nil, constructVerificationError("Missing 'kid' claim", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Missing 'kid' claim", protocol, publicBasePath, req)
 	}
 	iss, exists, err := claims.StringClaim("iss")
 	if !exists || err != nil {
-		return nil, constructVerificationError("Missing or invalid 'iss' claim", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Missing or invalid 'iss' claim", protocol, publicBasePath, req)
 	}
 	if expectedAudience != "" {
 		aud, _, err := claims.StringClaim("aud")
 		if err != nil {
-			return nil, constructVerificationError("Invalid 'aud' claim", protocol, authErrorRedirectPrefix, req)
+			return nil, constructVerificationError("Invalid 'aud' claim", protocol, publicBasePath, req)
 		}
 		if !verifyAudience(aud, expectedAudience) {
-			return nil, constructVerificationError("Error - 'aud' claim mismatch", protocol, authErrorRedirectPrefix, req)
+			return nil, constructVerificationError("Error - 'aud' claim mismatch", protocol, publicBasePath, req)
 		}
 	}
 
 	exp, exists, err := claims.TimeClaim("exp")
 	if !exists || err != nil {
-		return nil, constructVerificationError("Missing or invalid 'exp' claim", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Missing or invalid 'exp' claim", protocol, publicBasePath, req)
 	}
 	if exp.Before(now) {
-		return nil, constructVerificationError("Token is expired", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Token is expired", protocol, publicBasePath, req)
 	}
 	nbf, exists, err := claims.TimeClaim("nbf")
 	if !exists || err != nil || nbf.After(now) {
-		return nil, constructVerificationError("Missing or invalid 'nbf' claim", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Missing or invalid 'nbf' claim", protocol, publicBasePath, req)
 	}
 	iat, exists, err := claims.TimeClaim("iat")
 	if !exists || err != nil || iat.Add(-maxSkew).After(now) {
-		return nil, constructVerificationError("Missing or invalid 'iat' claim", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Missing or invalid 'iat' claim", protocol, publicBasePath, req)
 	}
 	if exp.Sub(iat) > maxTTL {
-		return nil, constructVerificationError("Invalid 'exp' claim (too long)", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Invalid 'exp' claim (too long)", protocol, publicBasePath, req)
 	}
 	jti, exists, err := claims.StringClaim("jti")
 	if !exists || err != nil || !nonceVerifier.Verify(jti, exp) {
-		return nil, constructVerificationError("Missing or invalid 'jti' claim", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Missing or invalid 'jti' claim", protocol, publicBasePath, req)
 	}
 
 	// Verify signature.
@@ -159,17 +159,17 @@ func Verify(req *http.Request, keyServer keyserver.Reader, nonceVerifier noncest
 		return nil, err
 	} else if err != nil {
 		log.Errorf("Could not get public key from key server: %s", err)
-		return nil, constructVerificationError("Unexpected key server error", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Unexpected key server error", protocol, publicBasePath, req)
 	}
 
 	verifier, err := publicKey.Verifier()
 	if err != nil {
 		log.Errorf("Could not create JWT verifier for public key '%s': %s", publicKey.ID(), err)
-		return nil, constructVerificationError("Unexpected verifier initialization failure", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Unexpected verifier initialization failure", protocol, publicBasePath, req)
 	}
 
 	if verifier.Verify(jwt.Signature, []byte(jwt.Data())) != nil {
-		return nil, constructVerificationError("Invalid JWT signature", protocol, authErrorRedirectPrefix, req)
+		return nil, constructVerificationError("Invalid JWT signature", protocol, publicBasePath, req)
 	}
 
 	return claims, nil
