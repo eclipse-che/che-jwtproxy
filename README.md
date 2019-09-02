@@ -202,6 +202,15 @@ jwtproxy:
       nonce_storage:
         type: <string|nil>
         options: <map[string]interface{}>
+
+      # a path on which the `access_token` cookie should be stored. This means that the browsers will only use the
+      # cookie on requests for URLs on the sub paths of the cookie_path.
+      cookie_path: <string|nil>
+
+      # In case the JWT proxy is placed behind a path-rewriting reverse proxy (such as Kubernetes Ingress)
+      # the value of this property can be used to modify the "apparent" path of the request as the JWT proxy
+      # sees it when composing the redirect to be used after the authentication request.
+      public_base_path: <string|nil>
 ```
 
 #### Key Registry Key Server
