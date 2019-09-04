@@ -1,3 +1,6 @@
+[![Master Build Status](https://ci.centos.org/buildStatus/icon?subject=master&job=devtools-che-jwtproxy-build-master/)](https://ci.centos.org/job/devtools-che-jwtproxy-build-master/)
+[![Nightly Build Status](https://ci.centos.org/buildStatus/icon?subject=nightly&job=devtools-che-jwtproxy-nightly/)](https://ci.centos.org/job/devtools-che-jwtproxy-nightly/)
+
 # JWT Proxy
 
 The JWT proxy is intended to be used as a complementary service for authenticating, and possibly authorizing requests made between services.
