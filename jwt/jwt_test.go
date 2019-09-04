@@ -276,6 +276,6 @@ func signAndModify(t *testing.T, req *http.Request, p signAndVerifyParams, modif
 
 func Verify(req *http.Request, p signAndVerifyParams) error {
 	// Verify.
-	_, err := jwt.Verify(req, p.services, p.services, p.cookiesEnabled, p.aud, p.maxSkew, p.maxTTL)
+	_, err := jwt.Verify(req, p.services, p.services, p.cookiesEnabled, p.aud, p.maxSkew, p.maxTTL, "")
 	return err
 }
