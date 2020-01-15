@@ -16,7 +16,7 @@ ENV PATH=/opt/rh/go-toolset-1.11/root/usr/bin:$PATH
 
 # DOWNSTREAM: use rhel8/go-toolset; no path modification needed
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/rhel8/go-toolset
-# FROM registry.redhat.io/rhel8/go-toolset:1.12.8-11 as builder
+# FROM registry.redhat.io/rhel8/go-toolset:1.12.8-18 as builder
 
 ENV GOPATH=/go/
 USER root
@@ -25,7 +25,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
 
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/ubi8-minimal
-FROM registry.access.redhat.com/ubi8-minimal:8.1-279
+FROM registry.access.redhat.com/ubi8-minimal:8.1-328
 
 ENV XDG_CONFIG_HOME=/config/
 VOLUME /config
