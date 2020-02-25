@@ -17,8 +17,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo 
 
 
 FROM alpine:3.7
-ENV XDG_CONFIG_HOME=/config/
-VOLUME /config
+ENV XDG_CONFIG_HOME=/che-jwtproxy-config/
+VOLUME /che-jwtproxy-config
 COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]
-CMD ["-config", "/config/config.yaml"]
+CMD ["-config", "/che-jwtproxy-config/config.yaml"]
