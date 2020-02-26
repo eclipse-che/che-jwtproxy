@@ -27,10 +27,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo 
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/ubi8-minimal
 FROM registry.access.redhat.com/ubi8-minimal:8.1-328
 
-ENV XDG_CONFIG_HOME=/config/
+ENV XDG_CONFIG_HOME=/che-jwtproxy-config/
 VOLUME /config
 COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]
-CMD ["-config", "/config/config.yaml"]
+CMD ["-config", "/che-jwtproxy-config/config.yaml"]
 
 # append Brew metadata here
