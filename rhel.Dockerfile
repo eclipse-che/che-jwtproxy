@@ -29,7 +29,7 @@ VOLUME /config
 # CRW-528 copy actual cert
 COPY --from=builder /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/pki/ca-trust/extracted/pem/
 # CRW-528 copy symlink to the above cert
-COPY --from=builder /etc/pki/tls/certs/ca-bundle.crt                  /etc/pki/tls/certs/
+COPY --from=builder /etc/pki/tls/certs/ca-bundle.crt /etc/pki/tls/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]

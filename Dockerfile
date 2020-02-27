@@ -17,8 +17,6 @@ WORKDIR /go/src/github.com/eclipse/che-jwtproxy/
 COPY . /go/src/github.com/eclipse/che-jwtproxy/
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
 
-
-
 FROM alpine:3.9
 USER appuser
 COPY --from=builder /etc/passwd /etc/passwd
