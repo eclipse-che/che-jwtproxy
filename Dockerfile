@@ -17,8 +17,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo 
 
 
 FROM alpine:3.7
-ENV XDG_CONFIG_HOME=/che-jwtproxy-config/
-VOLUME /che-jwtproxy-config
 COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]
-CMD ["-config", "/che-jwtproxy-config/config.yaml"]
+# The JWT proxy needs 2 things:
+# * the location of the configuration file supplied as an argument:
+#   `-config <location/of/the/config.yaml>`
+# * The XDG_CONFIG_HOME environment variable pointing to a directory where to store auth keys
+# CMD ["-config", "/che-jwtproxy-config/config.yaml"]
