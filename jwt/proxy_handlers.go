@@ -223,12 +223,15 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			}
 
 			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: cookiePath}
+			var cookieString string
 			if redirectUrl.Scheme == "https" {
 				cookie.Secure = true
-				cookie.SameSite = http.SameSiteNoneMode
+				cookieString = cookie.String() + "; SameSite=None"
+			} else {
+			        cookieString = cookie.String()
 			}
 			// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
-			resp.Header.Add("Set-Cookie", cookie.String())
+			resp.Header.Add("Set-Cookie", cookieString)
 		}
 		resp.Header.Add("Access-Control-Allow-Origin", redirectUrl.Scheme+"://"+redirectUrl.Host)
 		resp.Header.Add("Access-Control-Allow-Credentials", "true")
