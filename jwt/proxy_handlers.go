@@ -226,7 +226,7 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			var cookieString string
 			if redirectUrl.Scheme == "https" {
 				cookie.Secure = true
-				// Allow sending cookie to 3rd part context, see https://web.dev/samesite-cookies-explained/ and https://www.chromium.org/updates/same-site
+				// Allow sending cookie to 3rd party context, see https://web.dev/samesite-cookies-explained/ and https://www.chromium.org/updates/same-site
 				cookieString = cookie.String() + "; SameSite=None"
 			} else {
 			        cookieString = cookie.String() + "; SameSite=Lax"
