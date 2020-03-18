@@ -10,7 +10,7 @@
 #   Red Hat, Inc. - initial API and implementation
 #
 
-FROM golang:1.12 as builder
+FROM golang:1.10.3 as builder
 WORKDIR /go/src/github.com/eclipse/che-jwtproxy/
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
