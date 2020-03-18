@@ -223,11 +223,16 @@ func NewAuthenticationHandler(cfg config.VerifierConfig) (*StoppableProxyHandler
 			}
 
 			cookie := http.Cookie{Name: "access_token", Value: token, HttpOnly: true, Path: cookiePath}
+			var cookieString string
 			if redirectUrl.Scheme == "https" {
 				cookie.Secure = true
+				// Allow sending cookie to 3rd party context, see https://web.dev/samesite-cookies-explained/ and https://www.chromium.org/updates/same-site
+				cookieString = cookie.String() + "; SameSite=None"
+			} else {
+			        cookieString = cookie.String() + "; SameSite=Lax"
 			}
 			// workaround since cookies is not copied from response into writer, see proxy.go#ServeHTTP
-			resp.Header.Add("Set-Cookie", cookie.String())
+			resp.Header.Add("Set-Cookie", cookieString)
 		}
 		resp.Header.Add("Access-Control-Allow-Origin", redirectUrl.Scheme+"://"+redirectUrl.Host)
 		resp.Header.Add("Access-Control-Allow-Credentials", "true")
