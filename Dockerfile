@@ -21,8 +21,10 @@ FROM alpine:3.9
 USER appuser
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-ENV XDG_CONFIG_HOME=/che-jwtproxy-config/
-VOLUME /che-jwtproxy-config
 COPY --from=builder /go/src/github.com/eclipse/che-jwtproxy/jwtproxy /usr/local/bin
 ENTRYPOINT ["jwtproxy"]
-CMD ["-config", "/che-jwtproxy-config/config.yaml"]
+# The JWT proxy needs 2 things:
+# * the location of the configuration file supplied as an argument:
+#   `-config <location/of/the/config.yaml>`
+# * The XDG_CONFIG_HOME environment variable pointing to a directory where to store auth keys
+# CMD ["-config", "/che-jwtproxy-config/config.yaml"]
