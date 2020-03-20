@@ -9,10 +9,15 @@
 #   Red Hat, Inc. - initial API and implementation
 #
 
-# https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/devtools/go-toolset-rhel7
+# UPSTREAM: use devtools/go-toolset-rhel7 image so we're not required to authenticate with registry.redhat.io
+# https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/rhel8/go-toolset
 FROM registry.access.redhat.com/devtools/go-toolset-rhel7:1.12.12-4 as builder
 ENV PATH=/opt/rh/go-toolset-1.12/root/usr/bin:$PATH \
     GOPATH=/go/
+# DOWNSTREAM: use rhel8/go-toolset; no path modification needed
+# https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/rhel8/go-toolset
+# FROM registry.redhat.io/rhel8/go-toolset:1.12.8-18 as builder
+
 USER root
 WORKDIR /go/src/github.com/eclipse/che-jwtproxy/
 COPY . /go/src/github.com/eclipse/che-jwtproxy/
