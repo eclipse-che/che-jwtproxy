@@ -25,7 +25,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
 
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/ubi8-minimal
-FROM registry.access.redhat.com/ubi8-minimal:8.1-328
+FROM registry.access.redhat.com/ubi8-minimal:8.1-407
 
 ENV XDG_CONFIG_HOME=/che-jwtproxy-config/
 VOLUME /che-jwtproxy-config
