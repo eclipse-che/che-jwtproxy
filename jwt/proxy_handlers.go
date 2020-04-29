@@ -106,7 +106,7 @@ func NewJWTVerifierHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, e
 	stopper.Add(nonceStorage)
 
 	// Create an appropriate routing policy.
-	route := newRouter(cfg.Upstream.URL)
+	route := newRouter(cfg.Upstream.URL, cfg.PublicBasePath)
 
 	// Create the required list of claims.Verifier.
 	var claimsVerifiers []claims.Verifier
@@ -170,7 +170,7 @@ func NewReverseProxyHandler(cfg config.VerifierConfig) (*StoppableProxyHandler, 
 	stopper := stop.NewGroup()
 
 	// Create an appropriate routing policy.
-	route := newRouter(cfg.Upstream.URL)
+	route := newRouter(cfg.Upstream.URL, cfg.PublicBasePath)
 
 	// Create a reverse proxy.Handler that will proxy request to upstream
 	handler := func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
@@ -255,7 +255,7 @@ func errorResponse(r *http.Request, err error) *http.Response {
 
 type router func(r *http.Request, ctx *goproxy.ProxyCtx)
 
-func newRouter(upstream *url.URL) router {
+func newRouter(upstream *url.URL, stripPath string) router {
 	if strings.HasPrefix(upstream.String(), "unix:") {
 		// Upstream is an UNIX socket.
 		// - Use a goproxy.RoundTripper that has an "unix" net.Dial.
@@ -278,6 +278,9 @@ func newRouter(upstream *url.URL) router {
 		r.URL.Scheme = upstream.Scheme
 		r.URL.Host = upstream.Host
 		r.URL.Path = singleJoiningSlash(upstream.Path, r.URL.Path)
+		log.Printf("before [%s]\n", r.URL.Path)
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, stripPath)
+		log.Printf("after [%s]\n", r.URL.Path)
 
 		upstreamQuery := upstream.RawQuery
 		if upstreamQuery == "" || r.URL.RawQuery == "" {
