@@ -10,14 +10,14 @@
 #   Red Hat, Inc. - initial API and implementation
 #
 
-FROM golang:1.12-alpine3.9 as builder
+FROM golang:1.13-alpine3.12 as builder
 RUN apk add --no-cache ca-certificates
 RUN adduser -D -g '' appuser
 WORKDIR /go/src/github.com/eclipse/che-jwtproxy/
 COPY . /go/src/github.com/eclipse/che-jwtproxy/
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-w -s' -a -installsuffix cgo -o jwtproxy cmd/jwtproxy/main.go
 
-FROM alpine:3.9
+FROM alpine:3.12
 USER appuser
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
