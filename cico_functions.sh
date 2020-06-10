@@ -33,6 +33,28 @@ function load_jenkins_vars() {
   fi
 }
 
+
+function check_buildx_support() {
+  export DOCKER_BUILD_KIT=1
+  export DOCKER_CLI_EXPERIMENTAL=enabled
+
+  docker_version="$(docker --version | cut -d' ' -f3 | tr -cd '0-9.')"
+  if [[ "$(version "$docker_version")" < "$(version '19.03')" ]]; then
+    echo "CICO: Docker $docker_version greater than or equal to 19.03 is required."
+    exit 1
+  fi
+
+  # Kernel
+  kernel_version="$(uname -r)"
+  if [[ "$(version "$kernel_version")" < "$(version '4.8')" ]]; then
+    echo "Kernel $kernel_version too old - need >= 4.8." \
+          " Install a newer kernel."
+  else
+    echo "kernel $kernel_version has binfmt_misc fix-binary (F) support."
+  fi
+
+}
+
 function install_deps() {
   # We need to disable selinux for now, XXX
   /usr/sbin/setenforce 0  || true
@@ -44,7 +66,15 @@ function install_deps() {
     git
 
   service docker start
+
+  #Enable qemu and binfmt support
+  docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
+  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
   echo 'CICO: Dependencies installed'
+}
+
+function version() {
+  printf '%02d' $(echo "$1" | tr . ' ' | sed -e 's/ 0*/ /g') 2>/dev/null
 }
 
 function set_nightly_tag() {
@@ -57,12 +87,6 @@ function set_git_commit_tag() {
   # git commit hash
   GIT_COMMIT_TAG=$(echo "$GIT_COMMIT" | cut -c1-"${DEVSHIFT_TAG_LEN}")
   export GIT_COMMIT_TAG
-}
-
-function tag_push() {
-  local TARGET=$1
-  docker tag "${IMAGE}" "$TARGET"
-  docker push "$TARGET" | cat
 }
 
 function build_and_push() {
@@ -80,13 +104,17 @@ function build_and_push() {
 
   # Let's build and push image to 'quay.io' using git commit hash as tag first
   set_git_commit_tag
-  docker build -t ${IMAGE} -f ./build/dockerfiles/${DOCKERFILE} . | cat
-  tag_push "${REGISTRY}/${ORGANIZATION}/${IMAGE}:${GIT_COMMIT_TAG}"
+
+  # Create a new builder instance using buildx
+  docker buildx create --use --name builder
+  docker buildx inspect --bootstrap
+
+  docker buildx build --platform linux/amd64,linux/s390x -t ${REGISTRY}/${ORGANIZATION}/${IMAGE}:${GIT_COMMIT_TAG} -f ./build/dockerfiles/${DOCKERFILE} --push --progress plain --no-cache .
   echo "CICO: '${GIT_COMMIT_TAG}' version of images pushed to '${REGISTRY}/${ORGANIZATION}' organization"
 
   # If additional tag is set (e.g. "nightly"), let's tag the image accordingly and also push to 'quay.io'
   # Otherwise, let's tag the image as 'latest' and push to 'quay.io'
   TAG=${TAG:-${DEFAULT_TAG}}
-  tag_push "${REGISTRY}/${ORGANIZATION}/${IMAGE}:${TAG}"
+  docker buildx build --platform linux/amd64,linux/s390x -t ${REGISTRY}/${ORGANIZATION}/${IMAGE}:${TAG} -f ./build/dockerfiles/${DOCKERFILE} --push --progress plain --no-cache .
   echo "CICO: '${TAG}'  version of images pushed to '${REGISTRY}/${ORGANIZATION}' organization"
 }
