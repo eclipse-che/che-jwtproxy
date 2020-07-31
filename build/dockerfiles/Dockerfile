@@ -78,7 +78,6 @@ RUN apk --update --no-cache add \
 
 USER appuser
 COPY --from=builder /app/jwtproxy /usr/local/bin/jwtproxy
-
 ENTRYPOINT [ "/usr/local/bin/jwtproxy" ]
 
 # The JWT proxy needs 2 things:
