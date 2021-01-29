@@ -30,15 +30,14 @@ fi
 # create new branch off ${BASEBRANCH} (recreate only if --force'd)
 if [[ "${BASEBRANCH}" != "${BRANCH}" ]]; then
   git checkout "${BASEBRANCH}" || true
-  git branch "${BRANCH}" || { 
+  git branch --set-upstream-to="origin/${BRANCH}" "${BRANCH}" -q || { 
     if [[ ${FORCENEWBRANCH} -eq 0 ]]; then 
       echo "[INFO] Branch ${BRANCH} already exists: nothing to do!"
     else 
       echo "[INFO] Branch ${BRANCH} already exists: deleting and recreating branch"
       git push origin ":${BRANCH}"
       git branch "${BRANCH}"
+      git push origin "${BRANCH}"
     fi
   }
-  git pull origin "${BRANCH}" || true
-  git push origin "${BRANCH}"
 fi
