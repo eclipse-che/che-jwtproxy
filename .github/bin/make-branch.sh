@@ -1,7 +1,7 @@
 #!/bin/bash
 # Release process automation script. 
 # Used to create a branch
-BASEBRANCH=master
+BASEBRANCH=main
 FORCENEWBRANCH=0 # unless forced, don't create a new branch if one already exists. Use with caution!
 
 while [[ "$#" -gt 0 ]]; do
@@ -15,8 +15,10 @@ done
 
 usage ()
 {
-  echo "Usage: $0 --branch [BRANCH TO CREATE (if not exist)] --branchfrom [source branch, if not master/main] [--force]"
-  echo "Example: $0 --branch 7.25.x --branchfrom main --force"
+  echo "Usage:   $0 --branch [new branch to create] --branchfrom [source branch]"
+  echo "Example: $0 --branch 7.25.x --branchfrom $BASEBRANCH"
+  echo 
+  echo "Use --force to delete + recreate an existing branch."
   echo
 }
 
