@@ -1,4 +1,4 @@
-name: Branch JWT Proxy
+name: Create branch
 on:
   # to be run once every 3 weeks for a 7.yy.0 release, so we can get a stable 7.yy.x branch for use by downstream consumers
   workflow_dispatch:
