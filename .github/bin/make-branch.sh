@@ -29,6 +29,7 @@ fi
 
 # create new branch off ${BASEBRANCH} (recreate only if --force'd)
 if [[ "${BASEBRANCH}" != "${BRANCH}" ]]; then
+  git fetch
   git checkout "${BASEBRANCH}" || true
   git branch --set-upstream-to="origin/${BRANCH}" "${BRANCH}" -q || { 
     if [[ ${FORCENEWBRANCH} -eq 0 ]]; then 
