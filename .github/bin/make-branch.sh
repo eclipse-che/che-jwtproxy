@@ -31,14 +31,10 @@ fi
 if [[ "${BASEBRANCH}" != "${BRANCH}" ]]; then
   git fetch
   git checkout "${BASEBRANCH}" || true
-  git branch --set-upstream-to="origin/${BRANCH}" "${BRANCH}" -q || { 
-    if [[ ${FORCENEWBRANCH} -eq 0 ]]; then 
-      echo "[INFO] Branch ${BRANCH} already exists: nothing to do!"
-    else 
-      echo "[INFO] Branch ${BRANCH} already exists: deleting and recreating branch"
-      git push origin ":${BRANCH}"
-      git branch "${BRANCH}"
-      git push origin "${BRANCH}"
-    fi
-  }
+  # if branch exists and FORCENEWBRANCH true, delete from remote before creating new branch
+  if [[ $(git ls-remote --heads . "${BRANCH}" || true) ]] && [[ ${FORCENEWBRANCH} -eq 1 ]]; then
+    git push origin ":${BRANCH}" || true
+  fi
+  git branch --set-upstream-to="origin/${BRANCH}" "${BRANCH}" -q || true
+  git push origin "${BRANCH}" || true
 fi
