@@ -11,7 +11,7 @@
 
 # UPSTREAM: use devtools/go/-toolset-rhel7 image so we're not required to authenticate with registry.redhat.io
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/devtools/go-toolset-rhel7
-FROM registry.access.redhat.com/devtools/go-toolset-rhel7:1.14.12-13 as builder
+FROM registry.access.redhat.com/devtools/go-toolset-rhel7:1.14.12-4.1615820747 as builder
 ENV PATH=/opt/rh/go-toolset-1.14/root/usr/bin:$PATH
 # DOWNSTREAM: use rhel8/go-toolset; no path modification needed
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/rhel8/go-toolset
