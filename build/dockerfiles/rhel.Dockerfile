@@ -10,9 +10,10 @@
 #
 
 # UPSTREAM: use devtools/go/-toolset-rhel7 image so we're not required to authenticate with registry.redhat.io
-# https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/devtools/go-toolset-rhel7
-FROM registry.access.redhat.com/devtools/go-toolset-rhel7:1.14.12-4.1615820747 as builder
-ENV PATH=/opt/rh/go-toolset-1.14/root/usr/bin:$PATH
+# https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/ubi8-minimal
+FROM registry.access.redhat.com/ubi8-minimal:8.4 as builder
+RUN microdnf install -y golang shadow-utils && \
+    go version
 # DOWNSTREAM: use rhel8/go-toolset; no path modification needed
 # https://access.redhat.com/containers/?tab=tags#/registry.access.redhat.com/rhel8/go-toolset
 # FROM registry.redhat.io/rhel8/go-toolset:1.14.12-17.1618436992 as builder
