@@ -15,7 +15,7 @@ name: build
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
       - 'v*'
     tags:
       - 'v*'
@@ -23,7 +23,7 @@ on:
       - '**.md'
   pull_request:
     branches:
-      - 'master'
+      - 'main'
       - 'v*'
     paths-ignore:
       - '**.md'
@@ -31,7 +31,7 @@ on:
 jobs:
 
   go:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       -
         name: Checkout
