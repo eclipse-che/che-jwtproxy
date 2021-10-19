@@ -21,4 +21,4 @@ jobs:
     - name: DEPENDENCIES.md file validator.
       uses: che-incubator/dependencies-license-action@0.0.2
       env:
-        EXCLUDE_DEPS: "gopkg.in/check.v1"
+        EXCLUDE_DEPS: "gopkg.in/check.v1, github.com/stretchr/testify"
