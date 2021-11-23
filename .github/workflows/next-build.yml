@@ -73,10 +73,9 @@ jobs:
         name: Prepare
         id: prepare
         run: |
-          DOCKERHUB_USERNAME=${{secrets.DOCKERHUB_USERNAME}}
-          DOCKER_IMAGE=${{secrets.DOCKER_IMAGE}}
-          DOCKER_IMAGE=${DOCKER_IMAGE:-$GITHUB_REPOSITORY}
-          DOCKER_REPO=${{secrets.DOCKER_REPO}}
+          QUAY_USERNAME=${{secrets.QUAY_USERNAME}}
+          IMAGE=quay.io/eclipse/che-jwtproxy
+          REPO=quay.io
           DOCKER_PLATFORMS=linux/amd64,linux/s390x,linux/arm64,linux/ppc64le
           VERSION=next
 
@@ -84,12 +83,12 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/v}
           fi
 
-          TAGS="--tag ${DOCKER_IMAGE}:${VERSION}"
-          TAGS_RHEL="--tag ${DOCKER_IMAGE}:${VERSION}-rhel"
+          TAGS="--tag ${IMAGE}:${VERSION}"
+          TAGS_RHEL="--tag ${IMAGE}:${VERSION}-rhel"
 
-          echo ::set-output name=DOCKERHUB_USERNAME::${DOCKERHUB_USERNAME}
-          echo ::set-output name=docker_repo::${DOCKER_REPO}
-          echo ::set-output name=docker_image::${DOCKER_IMAGE}
+          echo ::set-output name=QUAY_USERNAME::${QUAY_USERNAME}
+          echo ::set-output name=REPO::${REPO}
+          echo ::set-output name=IMAGE::${IMAGE}
           echo ::set-output name=version::${VERSION}
           echo ::set-output name=buildx_args::--platform ${DOCKER_PLATFORMS} \
             --build-arg VERSION=${VERSION} \
@@ -116,9 +115,9 @@ jobs:
         name: Docker Login
         if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
         env:
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
         run: |
-          echo "${DOCKERHUB_PASSWORD}" | docker login ${{ steps.prepare.outputs.docker_repo }} --username "${{ steps.prepare.outputs.DOCKERHUB_USERNAME }}" --password-stdin
+          echo "${QUAY_PASSWORD}" | docker login ${{ steps.prepare.outputs.REPO }} --username "${{ steps.prepare.outputs.QUAY_USERNAME }}" --password-stdin
       -
         name: Docker Buildx (push)
         if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
@@ -133,7 +132,7 @@ jobs:
         name: Docker Check Manifest
         if: success() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
         run: |
-          docker run --rm mplatform/mquery ${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}
+          docker run --rm mplatform/mquery ${{ steps.prepare.outputs.IMAGE }}:${{ steps.prepare.outputs.version }}
       -
         name: Clear
         if: always() && github.event_name != 'pull_request' && (endsWith(github.ref, github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/'))
